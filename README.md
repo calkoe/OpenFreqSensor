@@ -2,22 +2,35 @@
 
 A low-cost, high-precision power grid frequency monitoring solution for the European power grid. Monitor grid stability with ±0.002Hz precision and get instant alerts for frequency deviations.
 
-![Schematic](schematic.png)
-
 ### Why Monitor Grid Frequency?
 
-The European power grid operates at 50Hz and its stability is crucial for:
+The European power grid operates at a nominal frequency of 50Hz, which serves as a critical indicator of grid stability and balance. Real-time frequency monitoring provides unprecedented insight into the power system's health and behavior.
 
-- Power grid reliability and stability
-- Early detection of grid disturbances
-- Understanding power supply/demand balance
+##### Understanding Grid Frequency Behavior
 
-##### Live Demo of Measurements
+Frequency is the heartbeat of the electrical grid - it reflects the instantaneous balance between electricity generation and consumption across the entire Continental European network. When this balance shifts, frequency changes reveal:
 
-View real-time frequency data from our monitoring network:
-https://grafana.fastalert.nrw/public-dashboards/0828674a5dd54280aab2e0723ffaba71?orgId=3&refresh=1s
+- **Supply-Demand Imbalances**: Frequency drops when demand exceeds generation, rises when generation exceeds demand
+- **System Response**: How quickly the grid compensates for disturbances through automatic controls
+- **Regional Variations**: Local disturbances propagate through the interconnected network
 
-##### Critical Thresholds (ENTSO-E)
+##### What Frequency Deviations Tell Us
+
+Every frequency change tells a story about grid operations:
+
+- **Slow Drifts (minutes)**: Indicate systematic generation-load imbalances, economic dispatch changes
+- **Fast Changes (seconds)**: Reveal sudden events like generator trips, large load connections/disconnections
+- **Oscillations**: Show control system interactions, potential stability issues
+- **Rate of Change**: Indicates how rapidly the system is losing or gaining energy
+
+##### Learning Opportunities
+
+By monitoring frequency, you gain insight into:
+
+- **Early Warning System**: Detect grid disturbances before they escalate to blackouts
+- **Load-Generation Balance**: Understand real-time supply and demand dynamics
+
+##### Critical Thresholds (ENTSO-E Standards)
 
 | Threshold                | Value            | Description                   |
 | ------------------------ | ---------------- | ----------------------------- |
@@ -29,6 +42,13 @@ https://grafana.fastalert.nrw/public-dashboards/0828674a5dd54280aab2e0723ffaba71
 
 Source: ENTSO-E Operation Handbook, Policy 1: Load-Frequency Control and Performance, Section A-S1: Standard Frequency Range Parameters. These are the official thresholds for the Continental Europe Synchronous Area.
 
+##### Live Demo and Data Analysis
+
+View real-time frequency data from our monitoring network:
+https://grafana.fastalert.nrw/public-dashboards/0828674a5dd54280aab2e0723ffaba71?orgId=3&refresh=1s
+
+For comprehensive grid analysis and historical data, visit [Energy-Charts](https://www.energy-charts.info/index.html?l=de&c=DE), maintained by Fraunhofer ISE.
+
 ### Features
 
 - 📊 Real-time frequency monitoring (±0.002Hz precision)
@@ -37,6 +57,8 @@ Source: ENTSO-E Operation Handbook, Policy 1: Load-Frequency Control and Perform
 - 📱 20x4 LCD interface with button controls
 - 🔋 Offline operation capability
 - 📦 3D-printable case included
+
+![Schematic](schematic.png)
 
 ##### Hardware Requirements
 
