@@ -63,6 +63,20 @@ For comprehensive grid analysis and historical data, visit [Energy-Charts](https
 - 5V USV Module [LINK](https://de.aliexpress.com/item/1005009864874228.html)
 - HDR-15 Power Supply [LINK](https://www.amazon.de/-/en/Amazon-Parent-MeanWell-Series-HDR-15/dp/B06XWQSJGW)
 
+##### 3D Printable Case
+
+The device housing consists of three parts that can be 3D printed:
+
+- [Part 1 (Base)](Part1.stl)
+- [Part 2 (Display Frame)](Part2.stl)
+- [Part 3 (Cover)](Part3.stl)
+
+Print Settings:
+
+- Material: PETG or ABS recommended (better heat resistance than PLA)
+- Layer Height: 0.2mm
+- Infill: 25%
+
 #### Software
 
 1. **Hardware Setup**
@@ -108,6 +122,29 @@ For comprehensive grid analysis and historical data, visit [Energy-Charts](https
 
    - The template file contains all available configuration options
    - `config.h` is ignored by git to keep your private settings secure
+
+##### MQTT Data Format
+
+The sensor publishes JSON messages with the following structure:
+
+```json
+{
+  "sensorId": "freqsensor/koecher1", // Unique sensor identifier
+  "time": 1761407894423, // UNIX timestamp in milliseconds
+  "freq": 49.964, // Current grid frequency in Hz
+  "amp": 167844.8, // Signal amplitude (ADC units)
+  "quality": 0.012, // Measurement quality (lower is better)
+  "alert": false, // Whether frequency exceeds thresholds
+  "alertType": "none", // Type of alert if triggered
+  "deviation": 0.036, // Deviation from 50 Hz
+  "ramp": 0.002990723, // Rate of change in Hz/s
+  "analyzingDelay": 250, // Processing time in ms
+  "freeHeap": 111228, // Available ESP32 memory in bytes
+  "heapUsage": 65.4, // Memory usage percentage
+  "cpuFreq": 240, // CPU frequency in MHz
+  "wifiRSSI": -60 // WiFi signal strength in dBm
+}
+```
 
 ##### Display Interface
 
