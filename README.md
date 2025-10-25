@@ -95,8 +95,8 @@ Print Settings:
 
    ```bash
    # Clone the repository
-   git clone https://github.com/yourusername/FreqSensor
-
+   git clone https://github.com/calkoe/OpenFreqSensor/tree/main
+   
    # Install PlatformIO
    # Open project in PlatformIO
    # Configure wifi settings in config.h
