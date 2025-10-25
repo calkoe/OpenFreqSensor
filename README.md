@@ -18,8 +18,6 @@ A low-cost, high-precision power grid frequency monitoring solution for the Euro
 Frequency is the heartbeat of the electrical grid - it reflects the instantaneous balance between electricity generation and consumption across the entire Continental European network. When this balance shifts, frequency changes reveal:
 
 - **Supply-Demand Imbalances**: Frequency drops when demand exceeds generation, rises when generation exceeds demand
-- **System Response**: How quickly the grid compensates for disturbances through automatic controls
-- **Regional Variations**: Local disturbances propagate through the interconnected network
 
 Every frequency change tells a story about grid operations:
 
