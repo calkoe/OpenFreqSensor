@@ -55,12 +55,12 @@ For comprehensive grid analysis and historical data, visit [Energy-Charts](https
 
 #### Hardware Requirements
 
-- ESP32 development board
-- 20x4 LCD display (I2C)
-- Voltage divider for grid measurement
-- Push buttons (3x)
-- Buzzer
-- ADC for frequency sampling
+- ESP32 development board [Link](https://www.az-delivery.de/en/products/esp32-developmentboard)
+- 20x4 LCD display (I2C) [Link](https://www.az-delivery.de/en/products/hd44780-2004-lcd-display-bundle-4x20-zeichen-mit-i2c-schnittstelle)
+- Push buttons (3x) [Link](https://www.amazon.de/-/en/pieces-momentary-pressure-lockless-dashboard/dp/B0DJNWWRSL)
+- Buzzer [Link](https://www.az-delivery.de/products/buzzer-modul-passiv)
+- ZMPT101B Active Single Phase Voltage Transformer [LINK](https://www.amazon.de/ANGEEK-ZMPT101B-Voltage-Transformer-Arduino/dp/B07ZDJS7CD)
+- 5V USV Module [LINK](https://de.aliexpress.com/item/1005009864874228.html)
 
 #### Software
 
