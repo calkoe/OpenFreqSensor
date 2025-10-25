@@ -154,7 +154,7 @@ The sensor publishes JSON messages with the following structure:
 - Ring buffer size: 4096 samples
 - Analysis interval: 250ms
 
-### Example Build
+## Example Build
 
 ##### Completed Device
 
