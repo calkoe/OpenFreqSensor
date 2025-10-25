@@ -61,6 +61,7 @@ For comprehensive grid analysis and historical data, visit [Energy-Charts](https
 - Buzzer [Link](https://www.az-delivery.de/products/buzzer-modul-passiv)
 - ZMPT101B Active Single Phase Voltage Transformer [LINK](https://www.amazon.de/ANGEEK-ZMPT101B-Voltage-Transformer-Arduino/dp/B07ZDJS7CD)
 - 5V USV Module [LINK](https://de.aliexpress.com/item/1005009864874228.html)
+- HDR-15 Power Supply [LINK](https://www.amazon.de/-/en/Amazon-Parent-MeanWell-Series-HDR-15/dp/B06XWQSJGW)
 
 #### Software
 
