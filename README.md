@@ -146,15 +146,6 @@ The sensor publishes JSON messages with the following structure:
 }
 ```
 
-##### Display Interface
-
-| Line | Information                      |
-| ---- | -------------------------------- |
-| 1    | Current Frequency + Alert Status |
-| 2    | Deviation from 50Hz + Quality    |
-| 3    | Network Status + Last Alert      |
-| 4    | Menu Options / Messages          |
-
 ##### Technical Details
 
 - Sampling Rate: 512 Hz
