@@ -11,7 +11,7 @@ A low-cost, high-precision power grid frequency monitoring solution for the Euro
 - 🔋 Offline operation capability
 - 📦 3D-printable case included
 
-##### Technical Details
+#### Technical Details
 
 - Sampling Rate: 512 Hz
 - FFT Analysis Size: 512 samples
@@ -131,7 +131,7 @@ Print Settings:
    - The template file contains all available configuration options
    - `config.h` is ignored by git to keep your private settings secure
 
-##### MQTT Data Format
+#### MQTT Data Format
 
 The sensor publishes JSON messages with the following structure:
 
@@ -155,13 +155,13 @@ The sensor publishes JSON messages with the following structure:
 ```
 ## Example Build
 
-##### Completed Device
+#### Completed Device
 
 - Assembled with ESP32 and components
 - 3D printed case
 - LCD display showing real-time frequency readings
 
-##### Testing Results
+#### Testing Results
 
 - Frequency accuracy: ±0.002Hz verified against reference meter
 - Response time: <250ms for frequency changes
