@@ -25,17 +25,13 @@ FrequencyAlert FrequencyInterpreter::interpret(const FrequencyAnalysis& analysis
     alert.deviation = fabsf(analysis.frequency - TARGET_FREQUENCY);
     alert.analyzingDelay = alert.frequencyAnalysis.millis - lastRun;
     
-    // Calculate current ramp (RoCoF) and 
-    float currentRamp = ((float)fabsf(analysis.frequency - lastFreq) / (float)alert.analyzingDelay) * 1000;
-    alert.ramp = (currentRamp + lastRamp) / 2.0f;
-    
     // Update state for next iteration
+    alert.ramp = ((float)fabsf(analysis.frequency - lastFreq) / (float)alert.analyzingDelay) * 1000;
     lastRun = alert.frequencyAnalysis.millis;
     lastFreq = analysis.frequency;
-    lastRamp = currentRamp;
 
     // Rate of Change (RoCoF) check - highest priority
-    if (alert.ramp >= RAMP_THRESHOLD && alert.ramp < 10) {
+    if (alert.ramp >= ROCOF_THRESHOLD && alert.ramp < 10) {
         alert.hasAlert = true;
         alert.alertType = "ROCOF";
         snprintf(alert.message, LCD_COLS, "RoCoF: %.3f Hz/s", alert.ramp);
@@ -43,17 +39,24 @@ FrequencyAlert FrequencyInterpreter::interpret(const FrequencyAnalysis& analysis
     }
 
     // Frequency deviation checks - staged alerts
-    if (alert.deviation >= CRITICAL_RANGE_THRESHOLD) {
+    if (alert.deviation >= ALERT_RANGE_THRESHOLD) {
         alert.hasAlert = true;
-        alert.alertType = "CRIT";
-        snprintf(alert.message, LCD_COLS, "CRIT: %.3f Hz", alert.frequencyAnalysis.frequency);
+        alert.alertType = "ALERT_RANGE_THRESHOLD";
+        snprintf(alert.message, LCD_COLS, "ALERT: %.3f Hz", alert.frequencyAnalysis.frequency);
         return alert;
     }
 
-    if (alert.deviation >= ALERT_RANGE_THRESHOLD) {
+    if (alert.deviation >= LEVEL1_EMERGENCY_THRESHOLD) {
         alert.hasAlert = true;
-        alert.alertType = "ALERT";
-        snprintf(alert.message, LCD_COLS, "ALERT: %.3f Hz", alert.frequencyAnalysis.frequency);
+        alert.alertType = "LEVEL1_EMERGENCY_THRESHOLD";
+        snprintf(alert.message, LCD_COLS, "EMERG1: %.3f Hz", alert.frequencyAnalysis.frequency);
+        return alert;
+    }
+
+    if (alert.deviation >= LEVEL2_EMERGENCY_THRESHOLD) {
+        alert.hasAlert = true;
+        alert.alertType = "LEVEL2_EMERGENCY_THRESHOLD";
+        snprintf(alert.message, LCD_COLS, "EMERG2: %.3f Hz", alert.frequencyAnalysis.frequency);
         return alert;
     }
 

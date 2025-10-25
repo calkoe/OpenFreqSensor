@@ -179,8 +179,10 @@ void DisplayHandler::loop() {
     // Drive Buzzer
     if (numAlarms && millis() - lastAlarmAdded <= ALARM_DURATION){ // Check if ALARM_DURATION have passed
         if(alarmHistory[writeIndex].alertType == "AMPL") ledcWriteTone(0, 200);
-        if(alarmHistory[writeIndex].alertType == "RAMP") ledcWriteTone(0, 500);
-        if(alarmHistory[writeIndex].alertType == "FREQ") ledcWriteTone(0, 1000);
+        if(alarmHistory[writeIndex].alertType == "RoCoF") ledcWriteTone(0, 500);
+        if(alarmHistory[writeIndex].alertType == "ALERT_RANGE_THRESHOLD") ledcWriteTone(0, 1000);
+        if(alarmHistory[writeIndex].alertType == "LEVEL1_EMERGENCY_THRESHOLD") ledcWriteTone(0, 1000);
+        if(alarmHistory[writeIndex].alertType == "LEVEL2_EMERGENCY_THRESHOLD") ledcWriteTone(0, 1000);
     }else{
         ledcWriteTone(0, 0);  // 440 Hz for 500 ms (A4 note)
     }

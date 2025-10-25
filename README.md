@@ -1,10 +1,10 @@
-# FreqSensor - Open Source Power Grid Frequency Monitor
+# OpenFreqSensor - Open Source Power Grid Frequency Monitor
 
 A low-cost, high-precision power grid frequency monitoring solution for the European power grid. Monitor grid stability with ±0.002Hz precision and get instant alerts for frequency deviations.
 
 ![Schematic](schematic.png)
 
-## Why Monitor Grid Frequency?
+### Why Monitor Grid Frequency?
 
 The European power grid operates at 50Hz and its stability is crucial for:
 
@@ -12,18 +12,24 @@ The European power grid operates at 50Hz and its stability is crucial for:
 - Early detection of grid disturbances
 - Understanding power supply/demand balance
 
-### Critical Thresholds
+##### Live Demo of Measurements
 
-| Threshold                | Value               | Description                   |
-| ------------------------ | ------------------- | ----------------------------- |
-| Standard Frequency Range | 49.95 - 50.05 Hz    | Normal operating range        |
-| Alert Range              | 49.8 - 50.2 Hz      | Deviation monitoring required |
-| Stage 1 Alert            | ±0.200 Hz           | First action threshold        |
-| Stage 2 Alert            | ±0.400 Hz           | Serious deviation             |
-| Critical Range           | < 49.0 or > 51.0 Hz | System split/emergency        |
-| Rate of Change           | > ±0.100 Hz/s       | Dynamic stability alert       |
+View real-time frequency data from our monitoring network:
+https://grafana.fastalert.nrw/public-dashboards/0828674a5dd54280aab2e0723ffaba71?orgId=3&refresh=1s
 
-## Features
+##### Critical Thresholds (ENTSO-E)
+
+| Threshold                | Value            | Description                   |
+| ------------------------ | ---------------- | ----------------------------- |
+| Standard Frequency Range | 49.95 - 50.05 Hz | Normal operating range        |
+| Alert Range              | 49.8 - 50.2 Hz   | Deviation monitoring required |
+| Level 1 Emergency        | 49.2 - 50.8 Hz   | Emergency state               |
+| Level 2 Emergency        | 47.5 - 51.5 Hz   | Blackout risk                 |
+| Rate of Change (RoCoF)   | > ±0.5 Hz/s      | Dynamic stability threshold   |
+
+Source: ENTSO-E Operation Handbook, Policy 1: Load-Frequency Control and Performance, Section A-S1: Standard Frequency Range Parameters. These are the official thresholds for the Continental Europe Synchronous Area.
+
+### Features
 
 - 📊 Real-time frequency monitoring (±0.002Hz precision)
 - 🔔 Local alerts via LCD display and buzzer
@@ -32,7 +38,7 @@ The European power grid operates at 50Hz and its stability is crucial for:
 - 🔋 Offline operation capability
 - 📦 3D-printable case included
 
-## Hardware Requirements
+##### Hardware Requirements
 
 - ESP32 development board
 - 20x4 LCD display (I2C)
@@ -41,7 +47,7 @@ The European power grid operates at 50Hz and its stability is crucial for:
 - Buzzer
 - ADC for frequency sampling
 
-## Getting Started
+##### Getting Started
 
 1. **Hardware Setup**
 
@@ -87,7 +93,7 @@ The European power grid operates at 50Hz and its stability is crucial for:
    - The template file contains all available configuration options
    - `config.h` is ignored by git to keep your private settings secure
 
-## Display Interface
+##### Display Interface
 
 | Line | Information                      |
 | ---- | -------------------------------- |
@@ -96,7 +102,7 @@ The European power grid operates at 50Hz and its stability is crucial for:
 | 3    | Network Status + Last Alert      |
 | 4    | Menu Options / Messages          |
 
-## Technical Details
+##### Technical Details
 
 - Sampling Rate: 512 Hz
 - FFT Analysis Size: 512 samples
@@ -104,19 +110,15 @@ The European power grid operates at 50Hz and its stability is crucial for:
 - Ring buffer size: 4096 samples
 - Analysis interval: 250ms
 
-## Contributing
+### Example Build
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
-
-## Example Build
-
-### Completed Device
+##### Completed Device
 
 - Assembled with ESP32 and components
 - 3D printed case
 - LCD display showing real-time frequency readings
 
-### Testing Results
+##### Testing Results
 
 - Frequency accuracy: ±0.002Hz verified against reference meter
 - Response time: <250ms for frequency changes
@@ -125,13 +127,17 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 
 ![Schematic](build.jpeg)
 
-## License
+### Contributing
+
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+
+### License
 
 [MIT](LICENSE)
 
-## Disclaimer and Safety Warning ⚠️
+### Disclaimer and Safety Warning ⚠️
 
-### Legal Disclaimer
+##### Legal Disclaimer
 
 This project is provided "AS IS", without warranty of any kind, express or implied. By using this project, you agree that:
 
@@ -141,7 +147,7 @@ This project is provided "AS IS", without warranty of any kind, express or impli
 - The accuracy and reliability of measurements cannot be guaranteed
 - This is NOT a certified measurement device
 
-### Safety Warning ⚡
+##### Safety Warning ⚡
 
 This device:
 
