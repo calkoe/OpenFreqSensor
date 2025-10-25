@@ -95,7 +95,7 @@ Print Settings:
 
    ```bash
    # Clone the repository
-   git clone https://github.com/calkoe/OpenFreqSensor/tree/main
+   git clone https://github.com/calkoe/OpenFreqSensor
    
    # Install PlatformIO
    # Open project in PlatformIO
