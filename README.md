@@ -11,6 +11,14 @@ A low-cost, high-precision power grid frequency monitoring solution for the Euro
 - 🔋 Offline operation capability
 - 📦 3D-printable case included
 
+##### Technical Details
+
+- Sampling Rate: 512 Hz
+- FFT Analysis Size: 512 samples
+- Gaussian interpolation for high precision
+- Ring buffer size: 4096 samples
+- Analysis interval: 250ms
+
 ![Schematic](schematic.png)
 
 ## Why Monitor Grid Frequency?
@@ -145,15 +153,6 @@ The sensor publishes JSON messages with the following structure:
   "wifiRSSI": -60 // WiFi signal strength in dBm
 }
 ```
-
-##### Technical Details
-
-- Sampling Rate: 512 Hz
-- FFT Analysis Size: 512 samples
-- Gaussian interpolation for high precision
-- Ring buffer size: 4096 samples
-- Analysis interval: 250ms
-
 ## Example Build
 
 ##### Completed Device
