@@ -1,4 +1,4 @@
-# OpenFreqSensor - Open Source Power Grid Frequency Monitor
+# ⚡ OpenFrequencySensor - Open Source Power Grid Frequency Monitor
 
 A low-cost, high-precision power grid frequency monitoring solution for the European power grid. Monitor grid stability with ±0.002Hz precision and get instant alerts for frequency deviations.
 
