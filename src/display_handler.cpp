@@ -197,7 +197,11 @@ void DisplayHandler::loop() {
     
     // First line: Always show current frequency
     if (hasAnalysis && currentAnalysis.isValidSignal) {
-        snprintf(message, LCD_COLS, "Freq: %.3f %-20s", currentAnalysis.frequency,"Hz");
+        static float lastDisplayedFreq = 0.0f;
+        if (currentAnalysis.frequency != lastDisplayedFreq || lastDisplayedFreq == 0.0f) {
+            snprintf(message, LCD_COLS, "Freq: %.3f %-20s", currentAnalysis.frequency, "Hz");
+            lastDisplayedFreq = currentAnalysis.frequency;
+        }
     } else {
         snprintf(message, LCD_COLS, "%-20s","No Signal");
     }
@@ -273,5 +277,4 @@ void DisplayHandler::loop() {
     }
     
     needsUpdate = false;
-    vTaskDelay(pdMS_TO_TICKS(10)); // Add small delay to prevent task hogging CPU
 }

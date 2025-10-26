@@ -26,7 +26,7 @@ class FrequencyInterpreter {
         unsigned long lastRun{0};
         float lastFreq{0};
         float lastRamp{0};
-        uint8_t warmup{10};
+        uint8_t warmup{40};
 };
 
 #endif // FREQUENCY_INTERPRETER_H

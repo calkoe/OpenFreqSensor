@@ -64,42 +64,40 @@ bool Networking::isTimeSet() {
 }
 
 void Networking::loop() {
-    if (!WIFI_CONFIGURED) {
-        display->updateWifiStatus(false);
-        display->updateMqttStatus(false);
-        display->updateNTPStatus(false);
-        return;
-    }
 
-    if (millis() - lastReconnectTry > 5000) {
-        lastReconnectTry = millis();
+    if (WIFI_CONFIGURED) {
 
-        // Update WiFi
-        bool wifiConnected = WiFi.isConnected();
-        display->updateWifiStatus(wifiConnected);
-        if (!wifiConnected && WiFi.status() != WL_CONNECTED) {
-            reconnectWiFi();
+        // Try to Reconnect
+        if (millis() - lastReconnectTry > 5000) {
+            lastReconnectTry = millis();
+
+                // Update WiFi
+                bool wifiConnected = WiFi.isConnected();
+                display->updateWifiStatus(wifiConnected);
+                if (!wifiConnected) {
+                    reconnectWiFi();
+                    display->updateMqttStatus(false);
+                    display->updateNTPStatus(false);
+                }
+
+                // Update MQTT if configured
+                if (MQTT_CONFIGURED) {
+                    bool mqttConnected = mqttClient.connected();
+                    display->updateMqttStatus(mqttConnected);
+                    if (wifiConnected && !mqttConnected) {
+                        reconnectMQTT();
+                    }
+                }
+
+                // Update NTP
+                display->updateNTPStatus(isTimeSet());
         }
 
-        // Update MQTT if configured
         if (MQTT_CONFIGURED) {
-            bool mqttConnected = mqttClient.connected();
-            display->updateMqttStatus(mqttConnected);
-            if (wifiConnected && !mqttConnected) {
-                reconnectMQTT();
-            }
-        } else {
-            display->updateMqttStatus(false);
+            mqttClient.loop();
         }
 
-        // Update NTP
-        display->updateNTPStatus(isTimeSet());
-    }
-
-    if (MQTT_CONFIGURED) {
-        mqttClient.loop();
     }
     
-    vTaskDelay(pdMS_TO_TICKS(10)); // Add small delay to prevent task hogging CPU
 }
 

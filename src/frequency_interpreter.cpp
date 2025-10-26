@@ -14,7 +14,7 @@ FrequencyAlert FrequencyInterpreter::interpret(const FrequencyAnalysis& analysis
 
     // Check for amplitude error (signal quality)
     if (!analysis.isValidSignal) {
-        warmup = 10;
+        warmup = 40;
         alert.hasAlert = true;
         alert.alertType = "AMPL";
         snprintf(alert.message, LCD_COLS, "AMPL: %.0f", alert.frequencyAnalysis.amplitude);
@@ -24,9 +24,7 @@ FrequencyAlert FrequencyInterpreter::interpret(const FrequencyAnalysis& analysis
     // Calculate frequency metrics
     alert.deviation = fabsf(analysis.frequency - TARGET_FREQUENCY);
     alert.analyzingDelay = alert.frequencyAnalysis.millis - lastRun;
-    
-    // Update state for next iteration
-    alert.ramp = ((float)fabsf(analysis.frequency - lastFreq) / (float)alert.analyzingDelay) * 1000;
+    alert.ramp = ((float)fabsf(analysis.frequency - lastFreq) / (float)alert.analyzingDelay) * 1000 * 4;
     lastRun = alert.frequencyAnalysis.millis;
     lastFreq = analysis.frequency;
 

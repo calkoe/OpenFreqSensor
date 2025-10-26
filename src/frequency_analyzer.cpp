@@ -1,117 +1,137 @@
 #include "frequency_analyzer.h"
 
+// Public
+
 FrequencyAnalyzer::FrequencyAnalyzer() {
-    writeIndex = 0;
-    vReal = new double[ANALYSIS_SIZE];
-    vImag = new double[ANALYSIS_SIZE];
-    memset(ringBuffer, 0, sizeof(ringBuffer));
+    // Create adcDataSliceQueue
+    adcDataSliceQueue = xQueueCreate(64, sizeof(AdcDataSlice));
+    if (adcDataSliceQueue == NULL) {
+        Serial.println("Error creating adcDataSliceQueue!");
+        while (1);
+    }
 }
 
 void IRAM_ATTR FrequencyAnalyzer::addDatapoint(uint16_t value) {
-    uint32_t currentIndex = __atomic_fetch_add(&writeIndex, 1, __ATOMIC_SEQ_CST) % RING_BUFFER_SIZE;
-    ringBuffer[currentIndex] = value;
-}
+    ringBuffer[writeIndex] = value;
+    if(millis() - lastSliceCopy > ANALYSIS_INTERVAL_MS){
+        // Calculate currentStartIndex
+        lastSliceCopy = millis();
+        uint32_t currentStartIndex = (writeIndex + RING_BUFFER_SIZE - ANALYSIS_SIZE) % RING_BUFFER_SIZE;
 
-uint16_t FrequencyAnalyzer::getReadStartIndex() {
-    uint32_t currentIndex;
-    __atomic_load(&writeIndex, &currentIndex, __ATOMIC_SEQ_CST);
-    return (currentIndex + RING_BUFFER_SIZE - ANALYSIS_SIZE) % RING_BUFFER_SIZE;
-}
+        // Generate Data Slice // Set Millis & Timestamp
+        AdcDataSlice adcDataSlice;
+        adcDataSlice.millis = lastSliceCopy;
+        gettimeofday(&adcDataSlice.time, nullptr);
 
-void FrequencyAnalyzer::copyDataToAnalysisBuffer(double* buffer) {
-    uint16_t startIdx = getReadStartIndex();
-    
-    // Calculate average for DC offset removal
-    double avg = 0;
-    for (uint16_t i = 0; i < ANALYSIS_SIZE; i++) {
-        avg += ringBuffer[(startIdx + i) % RING_BUFFER_SIZE];
-    }
-    avg /= ANALYSIS_SIZE;
-    
-    // Copy data and remove DC offset
-    for (uint16_t i = 0; i < ANALYSIS_SIZE; i++) {
-        buffer[i] = ringBuffer[(startIdx + i) % RING_BUFFER_SIZE] - avg;
-    }
-}
-
-FrequencyAnalysis FrequencyAnalyzer::analyze() {
-    FrequencyAnalysis result = {0};
-    
-    // Copy data from ring buffer and remove DC offset
-    copyDataToAnalysisBuffer(vReal);
-
-    // Set Millis
-    result.millis = millis();
-
-    // Set Timestamp with microsecond precision
-    gettimeofday(&result.time, nullptr);
-
-    // Clear imaginary components
-    for (uint16_t i = 0; i < ANALYSIS_SIZE; i++) {
-        vImag[i] = 0;
-    }
-
-    // Perform FFT
-    FFT.Windowing(vReal, analysisSize, FFT_WIN_TYP_HAMMING, FFT_FORWARD);
-    FFT.Compute(vReal, vImag, analysisSize, FFT_FORWARD);
-    FFT.ComplexToMagnitude(vReal, vImag, analysisSize);
-
-    // Find peak frequency around power grid frequency (45-55 Hz)
-    double maxAmplitude = 0;
-    uint16_t maxIndex = 0;
-    uint16_t startBin = 45 * analysisSize / samplingFreq;
-    uint16_t endBin = 55 * analysisSize / samplingFreq;
-    
-    for (uint16_t i = startBin; i <= endBin; i++) {
-        if (vReal[i] > maxAmplitude) {
-            maxAmplitude = vReal[i];
-            maxIndex = i;
+        // Copy Data
+        for (uint16_t i = 0; i < ANALYSIS_SIZE; i++) {
+            adcDataSlice.adcData[i] = ringBuffer[(currentStartIndex + i) % RING_BUFFER_SIZE];
         }
+
+        // Send Data Slice to Queue
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        xQueueSendFromISR(adcDataSliceQueue, &adcDataSlice, &xHigherPriorityTaskWoken);
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
+    writeIndex = (writeIndex + 1) % RING_BUFFER_SIZE;
+}
 
-    result.amplitude = maxAmplitude;
-    result.isValidSignal = maxAmplitude > AMPLITUDE_THRESHOLD && maxIndex > 0 && maxIndex < (analysisSize - 1);
+bool FrequencyAnalyzer::getNextSliceAnalysis(FrequencyAnalysis* frequencyAnalysis) {
 
-    if (result.isValidSignal) {
-        result.frequency = interpolateFrequency(maxIndex, maxAmplitude);
-        float binError = calculateBinError(result.frequency - maxIndex);
-        result.rawFrequency = result.frequency;
-        result.frequency += binError;
+    // Setup
+    static AdcDataSlice adcDataSlice;
+    static arduinoFFT FFT;
+    static double vReal[ANALYSIS_SIZE];
+    static double vImag[ANALYSIS_SIZE];
+
+    // Wait up to 1s for new data
+    if (xQueueReceive(adcDataSliceQueue, &adcDataSlice, 0) == pdTRUE) {
         
-        // Calculate quality metric
-        if (maxIndex > 0 && vReal[maxIndex] > 0) {
-            float beta = log(max(1.0, vReal[maxIndex]));
-            float alpha = log(max(1.0, vReal[maxIndex-1]));
-            float gamma = log(max(1.0, vReal[maxIndex+1]));
-            float d2 = (alpha + gamma - 2*beta);
-            result.quality = abs(beta) > 1e-6 ? -d2 / (beta * beta) : 0;
+        // Copy Time Data
+        frequencyAnalysis->millis = adcDataSlice.millis;  
+        frequencyAnalysis->time = adcDataSlice.time;   
+
+        // Calculate average for DC offset removal
+        double avg = 0;
+        for (uint16_t i = 0; i < ANALYSIS_SIZE; i++) {
+            avg += adcDataSlice.adcData[i];
         }
+        avg /= ANALYSIS_SIZE;
+        
+        // Fill vReal and vImag
+        for (uint16_t i = 0; i < ANALYSIS_SIZE; i++) {
+            vReal[i] = adcDataSlice.adcData[i] - avg;
+            vImag[i] = 0;
+        }
+
+        // Perform FFT
+        FFT.Windowing(vReal, ANALYSIS_SIZE, FFT_WIN_TYP_HAMMING, FFT_FORWARD);
+        FFT.Compute(vReal, vImag, ANALYSIS_SIZE, FFT_FORWARD);
+        FFT.ComplexToMagnitude(vReal, vImag, ANALYSIS_SIZE);
+        
+        // Find peak frequency around power grid frequency (45-55 Hz)
+        double maxAmplitude = 0;
+        uint16_t maxIndex = 0;
+        uint16_t startBin = 45 * ANALYSIS_SIZE / SAMPLING_FREQUENCY;
+        uint16_t endBin = 55 * ANALYSIS_SIZE / SAMPLING_FREQUENCY;
+        
+        for (uint16_t i = startBin; i <= endBin; i++) {
+            if (vReal[i] > maxAmplitude) {
+                maxAmplitude = vReal[i];
+                maxIndex = i;
+            }
+        }
+
+        frequencyAnalysis->amplitude = maxAmplitude;
+        frequencyAnalysis->isValidSignal = maxAmplitude > AMPLITUDE_THRESHOLD && maxIndex > 0 && maxIndex < (ANALYSIS_SIZE - 1);
+
+        if (frequencyAnalysis->isValidSignal) {
+            frequencyAnalysis->frequency = interpolateFrequency(vReal, maxIndex, maxAmplitude);
+            double binError = calculateBinError(frequencyAnalysis->frequency - maxIndex);
+            frequencyAnalysis->rawFrequency = frequencyAnalysis->frequency;
+            frequencyAnalysis->frequency += binError;
+            frequencyAvg = frequencyAvg * 0.75 + frequencyAnalysis->frequency * 0.25;
+            frequencyAnalysis->frequency = frequencyAvg;
+            
+            // Calculate quality metric
+            if (maxIndex > 0 && vReal[maxIndex] > 0) {
+                double beta = log(max(1.0, vReal[maxIndex]));
+                double alpha = log(max(1.0, vReal[maxIndex-1]));
+                double gamma = log(max(1.0, vReal[maxIndex+1]));
+                double d2 = (alpha + gamma - 2*beta);
+                frequencyAnalysis->quality = abs(beta) > 1e-6 ? -d2 / (beta * beta) : 0;
+            }
+        }
+
+        return true;
+
     }
 
-    return result;
+    return false;
+
 }
 
-float FrequencyAnalyzer::interpolateFrequency(uint16_t maxIndex, double maxAmplitude) {
-    float alpha = log(max(1.0, vReal[maxIndex-1]));
-    float beta = log(max(1.0, vReal[maxIndex]));
-    float gamma = log(max(1.0, vReal[maxIndex+1]));
+double FrequencyAnalyzer::interpolateFrequency(double* vReal, uint16_t maxIndex, double maxAmplitude) {
+    double alpha = log(max(1.0, vReal[maxIndex-1]));
+    double beta = log(max(1.0, vReal[maxIndex]));
+    double gamma = log(max(1.0, vReal[maxIndex+1]));
     
-    float denom = (alpha - 2*beta + gamma);
+    double denom = (alpha - 2*beta + gamma);
     if (abs(denom) > 1e-6) {
-        float p = 0.5 * (alpha - gamma) / denom;
-        float d2 = (alpha + gamma - 2*beta);
+        double p = 0.5 * (alpha - gamma) / denom;
+        double d2 = (alpha + gamma - 2*beta);
         
         if (d2 < 0) {
             p = p / (1 + 0.125 * d2 * p * p);
         }
         
-        return (maxIndex + p) * (float)samplingFreq / analysisSize;
+        return (maxIndex + p) * (double)SAMPLING_FREQUENCY / ANALYSIS_SIZE;
     }
     
-    return maxIndex * (float)samplingFreq / analysisSize;
+    return maxIndex * (double)SAMPLING_FREQUENCY / ANALYSIS_SIZE;
 }
 
-float FrequencyAnalyzer::calculateBinError(float p) {
+double FrequencyAnalyzer::calculateBinError(double p) {
     if (p >= 0) {
         return -0.06f * (0.5f - fabsf(p - 0.5f));
     }

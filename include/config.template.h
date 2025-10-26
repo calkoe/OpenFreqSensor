@@ -75,7 +75,6 @@
 
 // Timer Configuration
 // ESP32 timer settings for precise sampling
-#define TIMER_PRESCALER 2           // Hardware timer divider for ADC sampling
 #define CPU_FREQUENCY_MHZ 240       // ESP32 CPU clock speed (240MHz for optimal ADC)
 
 #endif // CONFIG_H
