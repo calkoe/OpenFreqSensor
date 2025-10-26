@@ -1,4 +1,4 @@
-# OpenFreqSensor - Open Source Power Grid Frequency Monitor
+# ⚡ OpenFrequencySensor - Open Source Power Grid Frequency Monitor
 
 A low-cost, high-precision power grid frequency monitoring solution for the European power grid. Monitor grid stability with ±0.002Hz precision and get instant alerts for frequency deviations.
 
@@ -18,8 +18,6 @@ A low-cost, high-precision power grid frequency monitoring solution for the Euro
 Frequency is the heartbeat of the electrical grid - it reflects the instantaneous balance between electricity generation and consumption across the entire Continental European network. When this balance shifts, frequency changes reveal:
 
 - **Supply-Demand Imbalances**: Frequency drops when demand exceeds generation, rises when generation exceeds demand
-- **System Response**: How quickly the grid compensates for disturbances through automatic controls
-- **Regional Variations**: Local disturbances propagate through the interconnected network
 
 Every frequency change tells a story about grid operations:
 
@@ -95,7 +93,7 @@ Print Settings:
 
    ```bash
    # Clone the repository
-   git clone https://github.com/yourusername/FreqSensor
+   git clone https://github.com/calkoe/OpenFreqSensor
 
    # Install PlatformIO
    # Open project in PlatformIO
@@ -123,7 +121,7 @@ Print Settings:
    - The template file contains all available configuration options
    - `config.h` is ignored by git to keep your private settings secure
 
-##### MQTT Data Format
+#### MQTT Data Format
 
 The sensor publishes JSON messages with the following structure:
 
@@ -146,16 +144,7 @@ The sensor publishes JSON messages with the following structure:
 }
 ```
 
-##### Display Interface
-
-| Line | Information                      |
-| ---- | -------------------------------- |
-| 1    | Current Frequency + Alert Status |
-| 2    | Deviation from 50Hz + Quality    |
-| 3    | Network Status + Last Alert      |
-| 4    | Menu Options / Messages          |
-
-##### Technical Details
+#### Technical Details
 
 - Sampling Rate: 512 Hz
 - FFT Analysis Size: 512 samples
@@ -163,15 +152,15 @@ The sensor publishes JSON messages with the following structure:
 - Ring buffer size: 4096 samples
 - Analysis interval: 250ms
 
-### Example Build
+## Example Build
 
-##### Completed Device
+#### Completed Device
 
 - Assembled with ESP32 and components
 - 3D printed case
 - LCD display showing real-time frequency readings
 
-##### Testing Results
+#### Testing Results
 
 - Frequency accuracy: ±0.002Hz verified against reference meter
 - Response time: <250ms for frequency changes
