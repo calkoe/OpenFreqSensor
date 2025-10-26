@@ -41,6 +41,7 @@ void Networking::reconnectMQTT() {
     Serial.println("Attempting MQTT connection...");
     String clientId = "FreqSensor-";
     clientId += String(random(0xffff), HEX);
+    mqttClient.disconnect();
     mqttClient.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD);
     bool connected = mqttClient.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD);
     if (connected) {
@@ -65,38 +66,34 @@ bool Networking::isTimeSet() {
 
 void Networking::loop() {
 
-    if (WIFI_CONFIGURED) {
+    // Try to Reconnect
+    if (WIFI_CONFIGURED && millis() - lastReconnectTry > 5000) {
+        lastReconnectTry = millis();
 
-        // Try to Reconnect
-        if (millis() - lastReconnectTry > 5000) {
-            lastReconnectTry = millis();
-
-                // Update WiFi
-                bool wifiConnected = WiFi.isConnected();
-                display->updateWifiStatus(wifiConnected);
-                if (!wifiConnected) {
-                    reconnectWiFi();
-                    display->updateMqttStatus(false);
-                    display->updateNTPStatus(false);
-                }
-
-                // Update MQTT if configured
-                if (MQTT_CONFIGURED) {
-                    bool mqttConnected = mqttClient.connected();
-                    display->updateMqttStatus(mqttConnected);
-                    if (wifiConnected && !mqttConnected) {
-                        reconnectMQTT();
-                    }
-                }
-
-                // Update NTP
-                display->updateNTPStatus(isTimeSet());
+        // Update WiFi
+        bool wifiConnected = WiFi.isConnected() && WiFi.status() == WL_CONNECTED;
+        display->updateWifiStatus(wifiConnected);
+        if (!wifiConnected) {
+            reconnectWiFi();
+            display->updateMqttStatus(false);
         }
 
+        // Update MQTT if configured
         if (MQTT_CONFIGURED) {
-            mqttClient.loop();
+            bool mqttConnected = mqttClient.connected();
+            display->updateMqttStatus(mqttConnected);
+            if (wifiConnected && !mqttConnected) {
+                reconnectMQTT();
+            }
         }
 
+        // Update NTP
+        display->updateNTPStatus(isTimeSet());
+
+    }
+
+    if (MQTT_CONFIGURED) {
+        mqttClient.loop();
     }
     
 }
