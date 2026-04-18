@@ -1,6 +1,6 @@
 #include "networking.h"
 
-Networking::Networking() : mqttClient(espClient){}
+Networking::Networking() : mqttClient(espClient), lastReconnectTry(0) {}
 
 void Networking::begin() {
     if (WIFI_CONFIGURED) {
@@ -27,14 +27,14 @@ void Networking::setupWiFi() {
 void Networking::setupMqtt() {
     Serial.println("Setting up MQTT...");
     mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
-    espClient.setInsecure(); 
+    espClient.setInsecure();
+    espClient.setTimeout(5);  // 5 seconds connection timeout
 }
 
 void Networking::reconnectWiFi() {
     Serial.println("WiFi lost connection. Reconnecting...");
     WiFi.disconnect();
     WiFi.reconnect();
-    delay(1000);
 }
 
 void Networking::reconnectMQTT() {
@@ -42,7 +42,6 @@ void Networking::reconnectMQTT() {
     String clientId = "FreqSensor-";
     clientId += String(random(0xffff), HEX);
     mqttClient.disconnect();
-    mqttClient.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD);
     bool connected = mqttClient.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD);
     if (connected) {
         Serial.println("MQTT connected!");
