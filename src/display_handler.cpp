@@ -193,7 +193,7 @@ void DisplayHandler::loop() {
 
     // Global Vars
     char message[LCD_COLS]{' '};
-    uint16_t i = writeIndex - scrollPosition;
+    uint16_t i = (writeIndex - scrollPosition + MAX_ALARMS) % MAX_ALARMS;
     
     // First line: Always show current frequency
     if (hasAnalysis && currentAnalysis.isValidSignal) {
