@@ -28,7 +28,7 @@ void Networking::setupMqtt() {
     Serial.println("Setting up MQTT...");
     mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
     espClient.setInsecure();
-    espClient.setTimeout(5);  // 5-second connection timeout
+    espClient.setTimeout(5);  // 5 seconds connection timeout
 }
 
 void Networking::reconnectWiFi() {
