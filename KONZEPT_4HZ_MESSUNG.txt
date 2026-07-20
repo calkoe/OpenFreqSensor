@@ -1,0 +1,194 @@
+================================================================================
+ KONZEPT: Echte 4-Hz-Frequenzmessung per Phasendifferenz (Hybrid-Verfahren)
+ FreqSensor / ESP32 - Stand: 2026-07-20
+================================================================================
+
+1. AUSGANGSLAGE (IST-ZUSTAND)
+--------------------------------------------------------------------------------
+Aktuell wird alle 250 ms eine 512-Punkte-FFT ueber die letzten 512 Samples
+(= 1 Sekunde bei fs = 512 Hz) gerechnet. Die vier Auswertungen pro Sekunde
+sind also zu 75 % ueberlappende Gleitfenster derselben Daten: jeder Messwert
+ist ein 1-Sekunden-Mittelwert. Zusaetzlich glaettet eine EMA
+(frequencyAvg = 0.75*alt + 0.25*neu, frequency_analyzer.cpp) mit ~1 s
+Zeitkonstante. Effektive Reaktionszeit: ca. 1,5-2 s trotz 4 Hz Update-Rate.
+
+Warum das Fenster nicht einfach verkleinern?
+Bei 128 Samples (250 ms) betraegt die FFT-Bin-Breite 4 Hz. Selbst mit
+Parabel-Interpolation bleiben ~50-200 mHz Fehler - unbrauchbar gegenueber
+den Schwellen von +/-50 mHz bzw. +/-200 mHz. Das ist die klassische
+Zeit-Frequenz-Unschaerfe der FFT.
+
+Der Ausweg: Die Netzspannung ist EIN einzelner, sauberer Sinus. Fuer diesen
+Spezialfall gibt es Schaetzer, die weit unterhalb der Bin-Breite aufloesen.
+Das hier beschriebene Phasendifferenz-Verfahren ist das Prinzip, mit dem
+auch professionelle Phasor Measurement Units (PMUs) arbeiten.
+
+
+2. ZIEL
+--------------------------------------------------------------------------------
+- Vier voneinander UNABHAENGIGE Frequenzmessungen pro Sekunde
+  (jede Messung basiert ausschliesslich auf 250 ms neuen Daten).
+- Praezision: einige mHz pro Einzelmessung (~2-5 mHz erwartbar).
+- RoCoF aus unabhaengigen Messungen (aktuell systematisch unterschaetzt,
+  weil Differenzen ueberlappender Mittelwerte gebildet werden).
+- Bestehende FFT bleibt als Grobschaetzer + Amplituden-/Validitaetspruefung.
+
+
+3. VERFAHREN IM UEBERBLICK
+--------------------------------------------------------------------------------
+Pro 250-ms-Block (exakt 128 Samples, per SAMPLE-ZAEHLER abgegrenzt, nicht
+per millis!):
+
+  a) DC-Offset entfernen (Blockmittelwert abziehen).
+  b) Hann-Fenster auf die 128 Samples (reduziert Leakage der Oberwellen
+     100/150/... Hz in den 50-Hz-Bin; symmetrisches Fenster -> kein
+     Phasen-Bias, Phase bezieht sich auf die Fenstermitte).
+  c) Komplexe Korrelation mit 50-Hz-Referenz (Einzel-Bin-DFT / Goertzel):
+
+        C_k = Summe( n = 0..127 )  x[n] * w[n] * exp(-j * 2*pi * 50 * n / 512)
+
+     also:
+        re = Summe x[n]*w[n]*cos(2*pi*50*n/512)
+        im = Summe x[n]*w[n]*sin(2*pi*50*n/512)
+
+        phi_k   = atan2(-im, re)        (Phase des 50-Hz-Anteils im Block k)
+        mag_k   = sqrt(re^2 + im^2)     (Amplitude -> Validitaetspruefung)
+
+  d) Frequenz aus der Phasendrehung zwischen Block k-1 und k:
+
+        Erwartete Drehung bei exakt 50 Hz:
+        dphi_soll = 2*pi * 50 * 128 / 512 = 2*pi * 12.5  ->  mod 2*pi = pi
+        (12,5 Perioden pro Block -> die Referenz "kippt" jeden Block um pi!)
+
+        dphi = wrap( phi_k - phi_(k-1) - pi )      auf Bereich (-pi, +pi]
+        df   = dphi / (2*pi * 0.25 s)
+        f    = 50.0 + df
+
+  e) Plausibilisierung / Unwrapping (siehe Abschnitt 5).
+
+Rechenaufwand: 128 MACs + 2x sin/cos-Tabelle (oder Goertzel-Rekursion) -
+vernachlaessigbar gegenueber der bestehenden 512er-FFT.
+
+Hinweis Tabellen: cos/sin(2*pi*50*n/512) ist periodisch ueber
+512/gcd(50,512) = 256 Samples -> eine 256er-Lookup-Tabelle reicht,
+oder Goertzel mit Koeffizient 2*cos(2*pi*50/512).
+
+
+4. WARUM DAS PRAEZISE IST (GROESSENORDNUNG)
+--------------------------------------------------------------------------------
+Phasenrauschen einer Korrelation ueber N Samples bei Amplitude A (Counts)
+und Rauschen sigma_n (Counts):
+
+    sigma_phi ~ sigma_n * sqrt(2/N) / A
+
+Beispiel: A = 500, sigma_n = 10, N = 128  ->  sigma_phi ~ 0.0025 rad
+    sigma_f = sqrt(2) * sigma_phi / (2*pi*0.25)  ~  2 mHz
+
+Systematische Grenze: Der ESP32-Quarz hat ~ +/-20 ppm Toleranz
+-> absoluter Offset bis ~ +/-1 mHz bei 50 Hz (plus Temperaturdrift).
+Fuer Relativ-/Alarmbetrieb egal; fuer Absolutgenauigkeit spaeter ggf.
+gegen NTP/Referenz kalibrieren (Konstante in config.h).
+
+
+5. MEHRDEUTIGKEIT UND HYBRID MIT DER FFT
+--------------------------------------------------------------------------------
+Die Phasendifferenz ist nur eindeutig fuer |df| < 2 Hz
+(dphi muss in (-pi, +pi] liegen; 2 Hz * 2*pi * 0.25 s = pi).
+
+Loesung (Hybrid):
+- Die bestehende 1-s-FFT laeuft weiter und liefert f_grob (+/- wenige 10 mHz)
+  sowie Amplitude fuer die AMPL-Alarme.
+- Liegt |f_fein - f_grob| > 1 Hz  ->  Phasenmessung um ganzzahlige Vielfache
+  von 4 Hz (= 1/(0.25 s)) korrigieren, bis sie zu f_grob passt
+  ("Unwrapping" mit der FFT als Anker). Bei Netzfrequenz praktisch nie
+  noetig (>2 Hz Abweichung = Netzzusammenbruch), aber so ist der
+  Algorithmus auch dann definiert.
+
+Weitere Validitaet:
+- mag_k unter Schwelle -> Messung ungueltig (analog AMPLITUDE_THRESHOLD;
+  Achtung: eigene Schwelle noetig, Skalierung ist anders als beim
+  512er-FFT-Peak: mag ~ 0.5 * (N/2) * A bei Hann).
+- Erster Block nach Start/Signalverlust hat keinen Vorgaenger ->
+  eine Messung Warmup, solange f_grob melden.
+
+
+6. NOTWENDIGE UMBAUTEN IM CODE
+--------------------------------------------------------------------------------
+frequency_analyzer.cpp / .h:
+  1. Slicing von millis() auf Sample-Zaehler umstellen:
+     processSample() zaehlt Samples; alle 128 Samples wird ein Block
+     abgeschlossen. (Der millis-Trigger macht die Blockabstaende aktuell
+     ungleichmaessig - fuer die Phasenmessung fatal, weil 1 Sample Versatz
+     bereits 2*pi*50/512 = 0.61 rad = ~0.39 Hz Fehler bedeutet.)
+  2. Pro Block: DC-Abzug, Hann, Korrelation, phi_k/mag_k berechnen
+     (direkt im Sampler-Task oder mit an den Slice angehaengten Rohdaten
+     im loop-Kontext - empfohlen: im loop-Kontext, Sampler-Task schlank
+     halten; dazu 128er-Block statt 512er-Slice in die Queue geben und
+     das 512er-FFT-Fenster im loop-Kontext aus einem lokalen Ringpuffer
+     zusammensetzen).
+  3. Phasen-Historie (phi_(k-1)) + Unwrap-Logik + f_fein berechnen.
+  4. EMA (frequencyAvg) ENTFERNEN oder als config-Option
+     (FREQ_SMOOTHING, default aus) - sonst ist die gewonnene
+     Reaktionszeit wieder weg.
+  5. FrequencyAnalysis erweitern:
+        double fineFrequency;    // Phasenmessung (das neue Hauptergebnis)
+        double coarseFrequency;  // FFT (bisheriges frequency)
+        bool   fineValid;
+     frequency = fineValid ? fineFrequency : coarseFrequency.
+
+config.h (+ config.template.h synchron halten!):
+    #define PHASE_BLOCK_SIZE 128        // Samples pro Phasenblock (250 ms)
+    #define PHASE_MAG_THRESHOLD ...     // Validitaet der Phasenmessung
+    // ggf. FREQ_CAL_PPM fuer Quarz-Kalibrierung
+
+frequency_interpreter.cpp:
+  - RoCoF aus aufeinanderfolgenden unabhaengigen f-Werten:
+        rocof = (f_k - f_(k-1)) / 0.25 s
+    Optional Median-ueber-3 gegen Einzelausreisser, bevor die
+    ROCOF_THRESHOLD-Pruefung greift (sonst mehr Fehlalarme, weil die
+    Messungen nicht mehr durch das 1-s-Fenster vorgeglaettet sind).
+  - Schwellenpruefung auf f_fein umstellen (passiert automatisch, wenn
+    frequency wie oben belegt wird).
+
+display / transmitter:
+  - Unveraendert; optional f_grob und f_fein beide per MQTT senden
+    (Feld "freqCoarse"), hilfreich zum Validieren in der Anfangszeit.
+
+
+7. RANDFAELLE / RISIKEN
+--------------------------------------------------------------------------------
+- Verlorene Samples: Ein einziges verlorenes Sample verschiebt die
+  Phasenreferenz um 0.61 rad -> ein Ausreisser von ~0.39 Hz fuer genau
+  eine Messung. Der Sampler-Task arbeitet mit Notification-Zaehler
+  (holt Rueckstand auf), daher praktisch ausgeschlossen; trotzdem:
+  Plausibilitaetscheck |f_fein - f_grob| faengt es ab (-> Messung
+  verwerfen, nicht alarmieren).
+- Oberwellen: Hann-Fenster + 250-ms-Fenster reichen fuer typische
+  Netz-THD. Falls doch Probleme: Korrelationsfrequenz statt fix 50 Hz
+  auf f_grob setzen (reduziert Leakage weiter), Formel bleibt gleich,
+  dphi_soll dann mit f_grob berechnen.
+- Aliasing: fs = 512 Hz, relevante Oberwellen bis 250 Hz sauber unter
+  Nyquist; hoehere Anteile sollten hardwareseitig (RC am ADC-Eingang)
+  gedaempft sein - pruefen.
+- Quarzdrift: siehe Abschnitt 4 (Kalibrierkonstante vorsehen).
+
+8. VALIDIERUNGSPLAN
+--------------------------------------------------------------------------------
+1. Synthetisch: Funktionsgenerator (oder zweiter ESP32 mit DAC) mit
+   49.800 / 50.000 / 50.200 Hz einspeisen -> f_fein muss auf wenige mHz
+   stimmen und in EINEM 250-ms-Schritt springen (nicht ueber ~1 s
+   einschleifen wie bisher).
+2. Frequenzsprung-Test: Generator umschalten -> RoCoF-Reaktion pruefen.
+3. Am Netz: f_fein gegen oeffentliche Referenz vergleichen
+   (z. B. netzfrequenz.info / SWISSGRID-Live-Wert); Abweichung sollte
+   im Bereich weniger mHz + Quarz-Offset liegen.
+4. Langzeit: freqCoarse vs. freq per MQTT loggen; Differenz-Histogramm
+   sollte eng um 0 liegen, Ausreisser nur bei AMPL-Ereignissen.
+
+================================================================================
+Kurzfassung: Blocktakt von millis auf Sample-Zaehler umstellen, pro
+128-Sample-Block Phase des 50-Hz-Anteils messen (Goertzel + Hann),
+Frequenz = Phasendrehung zwischen Nachbarbloecken / (2*pi*0.25s),
+FFT bleibt als Grobanker + Amplitudenpruefung, EMA raus.
+Ergebnis: 4 echte, unabhaengige Messungen/s mit ~2-5 mHz Praezision.
+================================================================================
