@@ -1,4 +1,5 @@
 #include "main.h"
+#include <esp_task_wdt.h>
 
 // Global variables initialization
 hw_timer_t *timer = NULL;
@@ -8,8 +9,11 @@ FrequencyInterpreter *interpreter = nullptr;
 FrequencyTransmitter *transmitter = nullptr;
 DisplayHandler *display = nullptr;
 
+// ISR must stay minimal: analogRead() & friends are not ISR-safe (flash
+// resident, take locks) and crash/hang when WiFi does flash writes.
+// The actual sampling happens in the analyzer's high-priority task.
 void IRAM_ATTR onTimer(){
-    analyzer->addDatapoint(analogRead(ADC_PIN));
+    analyzer->notifySampleFromISR();
 }
 
 void setup_timer(){
@@ -35,6 +39,12 @@ void setup(){
     setCpuFrequencyMhz(CPU_FREQUENCY_MHZ);
     Serial.begin(115200);
 
+    // Watchdog: reboot instead of hanging forever if loop() ever stalls
+    // (e.g. network stack wedged). Timeout must exceed the worst-case
+    // blocking TLS connect (2 x NET_TIMEOUT_S).
+    esp_task_wdt_init(WDT_TIMEOUT_S, true);
+    esp_task_wdt_add(NULL);
+
     // Initialize Display
     display = new DisplayHandler();
     display->begin();
@@ -48,13 +58,17 @@ void setup(){
     interpreter = new FrequencyInterpreter();
     transmitter = new FrequencyTransmitter(networking->getMqttClient());
 
-    // Initialize timer for sampling
+    // Start sampling task, then the timer that triggers it
     pinMode(ADC_PIN,INPUT);
+    analyzer->beginSampling();
     setup_timer();
 
 }
 
 void loop(){
+
+      // Feed the watchdog
+      esp_task_wdt_reset();
 
       // Analyze Data
       FrequencyAnalysis frequencyAnalysis{0};

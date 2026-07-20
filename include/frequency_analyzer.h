@@ -25,16 +25,23 @@ struct FrequencyAnalysis {
 class FrequencyAnalyzer {
 public:
     FrequencyAnalyzer();
-    IRAM_ATTR void addDatapoint(uint16_t value);
+    void beginSampling();               // Creates the sampler task (call before enabling the timer)
+    IRAM_ATTR void notifySampleFromISR();
     bool getNextSliceAnalysis(FrequencyAnalysis*);
 
 private:
-    
-    // Ring buffer management ISR CONTEXT
+
+    // Sampling runs in a dedicated high-priority task, triggered by the
+    // hardware timer ISR via task notification. analogRead()/gettimeofday()
+    // are not ISR-safe, so they must not be called from interrupt context.
+    static void samplerTaskEntry(void* arg);
+    void processSample();
+    TaskHandle_t samplerTaskHandle{nullptr};
     QueueHandle_t adcDataSliceQueue;
     uint16_t ringBuffer[RING_BUFFER_SIZE]{0};
-    volatile uint32_t writeIndex __attribute__((aligned(4))){0};  // 32-bit aligned for atomic access
+    uint32_t writeIndex{0};
     unsigned long lastSliceCopy{0};
+    AdcDataSlice sliceScratch;  // member, not stack local: ~1KB
 
     // Analyzing Management
     double frequencyAvg{50};

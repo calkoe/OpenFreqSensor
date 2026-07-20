@@ -86,12 +86,15 @@ private:
     bool currentNTPStatus;
     bool needsUpdate;
     unsigned long lastAlarmAdded;
+    unsigned long lastButtonPress;
+    uint32_t currentBuzzerFreq;
     FrequencyAlert alarmHistory[MAX_ALARMS];
     uint16_t writeIndex;
     bool writeOverflow;
     uint16_t numAlarms;
     uint16_t scrollPosition;
     void drawFrequencyBar(uint8_t row, float value);
+    void setBuzzer(uint32_t freq);
 };
 
 #endif // DISPLAY_HANDLER_H

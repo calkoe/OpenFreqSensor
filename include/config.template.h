@@ -27,6 +27,13 @@
 #define WIFI_CONFIGURED (!IS_PLACEHOLDER(WIFI_SSID) && !IS_PLACEHOLDER(WIFI_PASSWORD))
 #define MQTT_CONFIGURED (!IS_PLACEHOLDER(MQTT_SERVER) && !IS_PLACEHOLDER(MQTT_USERNAME))
 
+// Connection Handling Configuration
+#define NET_STATUS_INTERVAL_MS 5000     // How often WiFi/MQTT/NTP status is checked and shown
+#define WIFI_FORCE_RECONNECT_MS 60000   // Force a full WiFi re-association after this long offline
+#define MQTT_RETRY_INTERVAL_MS 30000    // Minimum time between (blocking) MQTT/TLS connect attempts
+#define NET_TIMEOUT_S 10                // Socket / TLS handshake timeout in seconds
+#define WDT_TIMEOUT_S 60                // Task watchdog: reboot if loop() stalls this long
+
 // NTP Configuration
 // Time synchronization settings for accurate timestamping
 #define NTP_SERVER "pool.ntp.org"          // NTP server pool for time synchronization
@@ -34,7 +41,7 @@
 
 // Hardware Pin Configuration
 // ESP32 GPIO assignments for various components
-#define ADC_PIN 34           // ADC input for grid voltage measurement (GPIO36 = ADC1_CH0)
+#define ADC_PIN 34           // ADC input for grid voltage measurement (GPIO34 = ADC1_CH6)
 #define BUTTON_UP_PIN 23     // Navigation button for menu/value increase
 #define BUTTON_DOWN_PIN 19   // Navigation button for menu/value decrease
 #define BUTTON_MUTE_PIN 18   // Silence alarm buzzer and acknowledge alerts
@@ -57,8 +64,8 @@
 #define TARGET_FREQUENCY 50.000f          // Nominal frequency of the Continental European power grid (Hz)
 #define STANDARD_RANGE_THRESHOLD 0.050f   // Normal operation range threshold (±50mHz). If exceeded, monitoring required
 #define ALERT_RANGE_THRESHOLD 0.200f      // Alert state threshold (±200mHz). Triggers system operator awareness
-#define LEVEL1_EMERGENCY_THRESHOLD 0.800f // Level 1 Emergency threshold (±800mHz). System stressed, corrective actions needed
-#define LEVEL2_EMERGENCY_THRESHOLD 2.500f // Level 2 Emergency threshold (±2500mHz). High risk of grid collapse
+#define LEVEL1_EMERGENCY_THRESHOLD 0.200f // Level 1 Emergency threshold (±800mHz). System stressed, corrective actions needed
+#define LEVEL2_EMERGENCY_THRESHOLD 0.800f // Level 2 Emergency threshold (±2500mHz). High risk of grid collapse
 #define ROCOF_THRESHOLD 0.500f           // Rate of Change of Frequency threshold (±500mHz/s). Indicates dynamic stability issues
 
 // Display Configuration
@@ -67,14 +74,13 @@
 #define LCD_COLS 20                   // Display width in characters (20x4 LCD)
 #define LCD_ROWS 4                    // Display height in characters
 #define LCD_PIXELS 100                // Display width in pixels (for graphics)
-#define ALARM_HISTORY_SIZE 256        // Circular buffer size for alarm event history
-#define MAX_ALARMS      512          // Maximum number of stored alarm events
-#define MAX_ALARM_INTERVAL_MS 5000   // Minimum time between new alarms (prevent spam)
-#define ALARM_DURATION 3600000       // How long an alarm remains active (1 hour)
-#define DISPLAY_REFRESH_MS 500       // Screen update interval (2 Hz refresh rate)
+#define MAX_ALARMS      64            // Maximum number of stored alarm events (ring buffer, ~100B each)
+#define MAX_ALARM_INTERVAL_MS 5000    // Minimum time between new alarms (prevent spam)
+#define BUZZER_DURATION_MS 600000     // How long the buzzer sounds after a new alarm (history stays until mute)
+#define DISPLAY_REFRESH_MS 500        // Screen update interval (2 Hz refresh rate)
 
 // Timer Configuration
 // ESP32 timer settings for precise sampling
-#define CPU_FREQUENCY_MHZ 240       // ESP32 CPU clock speed (240MHz for optimal ADC)
+#define CPU_FREQUENCY_MHZ 160       // ESP32 CPU clock speed (160MHz is plenty; sampling is timer-driven)
 
 #endif // CONFIG_H

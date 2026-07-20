@@ -18,33 +18,35 @@ void Networking::begin() {
 }
 
 void Networking::setupWiFi() {
-    delay(10);
     Serial.println("Connecting to WiFi...");
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    WiFi.persistent(false);   // No NVS flash writes on every begin/disconnect
+    WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false);     // Modem sleep causes drops on flaky networks
     WiFi.setAutoReconnect(true);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 }
 
 void Networking::setupMqtt() {
     Serial.println("Setting up MQTT...");
+    espClient.setInsecure();
+    espClient.setTimeout(NET_TIMEOUT_S);           // seconds (socket ops)
+    espClient.setHandshakeTimeout(NET_TIMEOUT_S);  // seconds (TLS handshake)
     mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
-    espClient.setInsecure(); 
+    mqttClient.setSocketTimeout(NET_TIMEOUT_S);
+    mqttClient.setKeepAlive(30);
 }
 
-void Networking::reconnectWiFi() {
-    Serial.println("WiFi lost connection. Reconnecting...");
+void Networking::forceWiFiReconnect() {
+    Serial.println("WiFi down for a while - forcing full reconnect...");
     WiFi.disconnect();
-    WiFi.reconnect();
-    delay(1000);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 }
 
 void Networking::reconnectMQTT() {
     Serial.println("Attempting MQTT connection...");
     String clientId = "FreqSensor-";
     clientId += String(random(0xffff), HEX);
-    mqttClient.disconnect();
-    mqttClient.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD);
-    bool connected = mqttClient.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD);
-    if (connected) {
+    if (mqttClient.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD)) {
         Serial.println("MQTT connected!");
     } else {
         Serial.print("MQTT connection failed, rc=");
@@ -66,35 +68,41 @@ bool Networking::isTimeSet() {
 
 void Networking::loop() {
 
-    // Try to Reconnect
-    if (WIFI_CONFIGURED && millis() - lastReconnectTry > 5000) {
-        lastReconnectTry = millis();
+    if (WIFI_CONFIGURED && millis() - lastStatusCheck > NET_STATUS_INTERVAL_MS) {
+        lastStatusCheck = millis();
 
-        // Update WiFi
-        bool wifiConnected = WiFi.isConnected() && WiFi.status() == WL_CONNECTED;
+        bool wifiConnected = WiFi.status() == WL_CONNECTED;
         display->updateWifiStatus(wifiConnected);
-        if (!wifiConnected) {
-            reconnectWiFi();
-            display->updateMqttStatus(false);
-        }
-
-        // Update MQTT if configured
-        if (MQTT_CONFIGURED) {
-            bool mqttConnected = mqttClient.connected();
-            display->updateMqttStatus(mqttConnected);
-            if (wifiConnected && !mqttConnected) {
-                reconnectMQTT();
-            }
-        }
-
-        // Update NTP
         display->updateNTPStatus(isTimeSet());
 
+        if (!wifiConnected) {
+            display->updateMqttStatus(false);
+            // Short dropouts are handled by the driver's auto-reconnect.
+            // Only force a full re-association if we stay offline too long.
+            if (!wifiWasDown) {
+                wifiWasDown = true;
+                wifiDownSince = millis();
+            } else if (millis() - wifiDownSince > WIFI_FORCE_RECONNECT_MS) {
+                forceWiFiReconnect();
+                wifiDownSince = millis();
+            }
+        } else {
+            wifiWasDown = false;
+
+            if (MQTT_CONFIGURED) {
+                bool mqttConnected = mqttClient.connected();
+                display->updateMqttStatus(mqttConnected);
+                // connect() blocks for up to 2 x NET_TIMEOUT_S, so rate-limit it
+                if (!mqttConnected && millis() - lastMqttAttempt > MQTT_RETRY_INTERVAL_MS) {
+                    lastMqttAttempt = millis();
+                    reconnectMQTT();
+                }
+            }
+        }
     }
 
     if (MQTT_CONFIGURED) {
         mqttClient.loop();
     }
-    
-}
 
+}

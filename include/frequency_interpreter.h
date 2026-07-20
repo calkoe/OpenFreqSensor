@@ -2,7 +2,6 @@
 #define FREQUENCY_INTERPRETER_H
 
 #include "frequency_analyzer.h"
-#include "frequency_analyzer.h"
 #include "config.h"
 
 // Interpreter Constants

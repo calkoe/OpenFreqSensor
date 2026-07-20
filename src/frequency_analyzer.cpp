@@ -3,35 +3,55 @@
 // Public
 
 FrequencyAnalyzer::FrequencyAnalyzer() {
-    // Create adcDataSliceQueue
-    adcDataSliceQueue = xQueueCreate(64, sizeof(AdcDataSlice));
+    // Create adcDataSliceQueue (slices arrive every ANALYSIS_INTERVAL_MS and
+    // are consumed in loop(), so a few slots of headroom are enough)
+    adcDataSliceQueue = xQueueCreate(4, sizeof(AdcDataSlice));
     if (adcDataSliceQueue == NULL) {
-        Serial.println("Error creating adcDataSliceQueue!");
-        while (1);
+        Serial.println("Error creating adcDataSliceQueue! Restarting...");
+        delay(1000);
+        ESP.restart();
     }
 }
 
-void IRAM_ATTR FrequencyAnalyzer::addDatapoint(uint16_t value) {
-    ringBuffer[writeIndex] = value;
+void FrequencyAnalyzer::beginSampling() {
+    xTaskCreatePinnedToCore(samplerTaskEntry, "sampler", 4096, this, 10, &samplerTaskHandle, 1);
+}
+
+// ISR context: only an IRAM-safe task notification, nothing else
+void IRAM_ATTR FrequencyAnalyzer::notifySampleFromISR() {
+    if (samplerTaskHandle == nullptr) return;
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    vTaskNotifyGiveFromISR(samplerTaskHandle, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+
+void FrequencyAnalyzer::samplerTaskEntry(void* arg) {
+    FrequencyAnalyzer* self = static_cast<FrequencyAnalyzer*>(arg);
+    for (;;) {
+        // Acts as counting semaphore: catches up if samples queued up
+        ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
+        self->processSample();
+    }
+}
+
+void FrequencyAnalyzer::processSample() {
+    ringBuffer[writeIndex] = analogRead(ADC_PIN);
     if(millis() - lastSliceCopy > ANALYSIS_INTERVAL_MS){
         // Calculate currentStartIndex
         lastSliceCopy = millis();
         uint32_t currentStartIndex = (writeIndex + RING_BUFFER_SIZE - ANALYSIS_SIZE) % RING_BUFFER_SIZE;
 
         // Generate Data Slice // Set Millis & Timestamp
-        AdcDataSlice adcDataSlice;
-        adcDataSlice.millis = lastSliceCopy;
-        gettimeofday(&adcDataSlice.time, nullptr);
+        sliceScratch.millis = lastSliceCopy;
+        gettimeofday(&sliceScratch.time, nullptr);
 
         // Copy Data
         for (uint16_t i = 0; i < ANALYSIS_SIZE; i++) {
-            adcDataSlice.adcData[i] = ringBuffer[(currentStartIndex + i) % RING_BUFFER_SIZE];
+            sliceScratch.adcData[i] = ringBuffer[(currentStartIndex + i) % RING_BUFFER_SIZE];
         }
 
-        // Send Data Slice to Queue
-        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-        xQueueSendFromISR(adcDataSliceQueue, &adcDataSlice, &xHigherPriorityTaskWoken);
-        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+        // Send Data Slice to Queue (drop slice if queue is full)
+        xQueueSend(adcDataSliceQueue, &sliceScratch, 0);
     }
     writeIndex = (writeIndex + 1) % RING_BUFFER_SIZE;
 }

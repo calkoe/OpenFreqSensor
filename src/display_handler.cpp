@@ -8,10 +8,12 @@ DisplayHandler::DisplayHandler()
       currentMqttStatus(false),
       currentNTPStatus(false),
       needsUpdate(false),
-      writeIndex(MAX_ALARMS),
+      writeIndex(MAX_ALARMS - 1),
       writeOverflow(0),
       numAlarms(0),
       lastAlarmAdded(0),
+      lastButtonPress(0),
+      currentBuzzerFreq(0),
       scrollPosition(0)
       {
 }
@@ -47,10 +49,31 @@ void DisplayHandler::begin() {
     pinMode(BUTTON_UP_PIN, INPUT_PULLUP);
     pinMode(BUTTON_DOWN_PIN, INPUT_PULLUP);
     pinMode(BUTTON_MUTE_PIN, INPUT_PULLUP);
+
+    // Buzzer: hard LOW when idle, LEDC only attached while a tone plays
+    pinMode(BUZZER_PIN, OUTPUT);
+    digitalWrite(BUZZER_PIN, LOW);
     ledcSetup(0, 2000, 8);   // 2 kHz, 8-bit
-    ledcWriteTone(0, 1000);
-    delay(1000);
-    ledcAttachPin(BUZZER_PIN, 0);
+    setBuzzer(1000);         // short startup beep
+    delay(200);
+    setBuzzer(0);
+}
+
+// Only touches the LEDC peripheral on state changes. When silent, the pin is
+// detached from LEDC and driven LOW - a permanently attached channel keeps
+// emitting residual pulses at duty 0, which is audible as a faint hum.
+void DisplayHandler::setBuzzer(uint32_t freq) {
+    if (freq == currentBuzzerFreq) return;
+    currentBuzzerFreq = freq;
+    if (freq == 0) {
+        ledcWriteTone(0, 0);
+        ledcDetachPin(BUZZER_PIN);
+        pinMode(BUZZER_PIN, OUTPUT);
+        digitalWrite(BUZZER_PIN, LOW);
+    } else {
+        ledcAttachPin(BUZZER_PIN, 0);
+        ledcWriteTone(0, freq);
+    }
 }
 
 
@@ -78,12 +101,14 @@ void DisplayHandler::updateNTPStatus(const bool status) {
 void DisplayHandler::handleUpButton() {
     if(numAlarms){
         scrollPosition = (scrollPosition + numAlarms - 1) % numAlarms;
+        needsUpdate = true;
     }
 }
 
 void DisplayHandler::handleDownButton() {
     if(numAlarms){
         scrollPosition = (scrollPosition + 1) % numAlarms;
+        needsUpdate = true;
     }
 }
 
@@ -91,6 +116,7 @@ void DisplayHandler::handleMuteButton() {
     numAlarms = 0;
     scrollPosition = 0;
     lcd.clear();
+    needsUpdate = true;
 }
 
 // Method to add an alarms
@@ -171,21 +197,22 @@ void DisplayHandler::drawFrequencyBar(uint8_t row, float value) {
 
 void DisplayHandler::loop() {
 
-    // Read Pins
-    if(!digitalRead(BUTTON_UP_PIN)) handleUpButton();
-    if(!digitalRead(BUTTON_DOWN_PIN)) handleDownButton();
-    if(!digitalRead(BUTTON_MUTE_PIN)) handleMuteButton();
-
-    // Drive Buzzer
-    if (numAlarms && millis() - lastAlarmAdded <= ALARM_DURATION){ // Check if ALARM_DURATION have passed
-        if(alarmHistory[writeIndex].alertType == "AMPL") ledcWriteTone(0, 200);
-        if(alarmHistory[writeIndex].alertType == "RoCoF") ledcWriteTone(0, 500);
-        if(alarmHistory[writeIndex].alertType == "ALERT_RANGE_THRESHOLD") ledcWriteTone(0, 1000);
-        if(alarmHistory[writeIndex].alertType == "LEVEL1_EMERGENCY_THRESHOLD") ledcWriteTone(0, 1000);
-        if(alarmHistory[writeIndex].alertType == "LEVEL2_EMERGENCY_THRESHOLD") ledcWriteTone(0, 1000);
-    }else{
-        ledcWriteTone(0, 0);  // 440 Hz for 500 ms (A4 note)
+    // Read Pins (debounced)
+    if (millis() - lastButtonPress > BUTTON_DEBOUNCE_MS) {
+        if(!digitalRead(BUTTON_UP_PIN)) { handleUpButton(); lastButtonPress = millis(); }
+        else if(!digitalRead(BUTTON_DOWN_PIN)) { handleDownButton(); lastButtonPress = millis(); }
+        else if(!digitalRead(BUTTON_MUTE_PIN)) { handleMuteButton(); lastButtonPress = millis(); }
     }
+
+    // Drive Buzzer (setBuzzer only touches LEDC on state changes)
+    uint32_t buzzerFreq = 0;
+    if (numAlarms && millis() - lastAlarmAdded <= BUZZER_DURATION_MS){
+        const char* type = alarmHistory[writeIndex].alertType;
+        if (strcmp(type, "AMPL") == 0)       buzzerFreq = 200;
+        else if (strcmp(type, "ROCOF") == 0) buzzerFreq = 500;
+        else                                 buzzerFreq = 1000;
+    }
+    setBuzzer(buzzerFreq);
 
     if (!needsUpdate) {
         return;
@@ -193,15 +220,11 @@ void DisplayHandler::loop() {
 
     // Global Vars
     char message[LCD_COLS]{' '};
-    uint16_t i = writeIndex - scrollPosition;
-    
+    uint16_t i = (writeIndex + MAX_ALARMS - scrollPosition) % MAX_ALARMS;
+
     // First line: Always show current frequency
     if (hasAnalysis && currentAnalysis.isValidSignal) {
-        static float lastDisplayedFreq = 0.0f;
-        if (currentAnalysis.frequency != lastDisplayedFreq || lastDisplayedFreq == 0.0f) {
-            snprintf(message, LCD_COLS, "Freq: %.3f %-20s", currentAnalysis.frequency, "Hz");
-            lastDisplayedFreq = currentAnalysis.frequency;
-        }
+        snprintf(message, LCD_COLS, "Freq: %.3f %-20s", currentAnalysis.frequency, "Hz");
     } else {
         snprintf(message, LCD_COLS, "%-20s","No Signal");
     }

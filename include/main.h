@@ -11,8 +11,6 @@
 
 // Global variables
 extern hw_timer_t* timer;
-extern uint16_t ringBuffer[];
-extern unsigned long lastAnalysis;
 extern Networking* networking;
 extern FrequencyAnalyzer* analyzer;
 extern FrequencyInterpreter* interpreter;

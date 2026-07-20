@@ -23,10 +23,13 @@ class Networking {
         // Network clients
         WiFiClientSecure espClient;
         PubSubClient mqttClient;
-        unsigned long lastReconnectTry;
+        unsigned long lastStatusCheck{0};
+        unsigned long lastMqttAttempt{0};
+        bool wifiWasDown{false};
+        unsigned long wifiDownSince{0};
         void setupWiFi();
         void setupMqtt();
-        void reconnectWiFi();
+        void forceWiFiReconnect();
         void reconnectMQTT();
         void setupNTP();
         bool isTimeSet();

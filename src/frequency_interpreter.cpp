@@ -36,11 +36,12 @@ FrequencyAlert FrequencyInterpreter::interpret(const FrequencyAnalysis& analysis
         return alert;
     }
 
-    // Frequency deviation checks - staged alerts
-    if (alert.deviation >= ALERT_RANGE_THRESHOLD) {
+    // Frequency deviation checks - staged alerts, most severe first
+    // (otherwise the mildest threshold always matches and returns early)
+    if (alert.deviation >= LEVEL2_EMERGENCY_THRESHOLD) {
         alert.hasAlert = true;
-        alert.alertType = "ALERT_RANGE_THRESHOLD";
-        snprintf(alert.message, LCD_COLS, "ALERT: %.3f Hz", alert.frequencyAnalysis.frequency);
+        alert.alertType = "LEVEL2_EMERGENCY_THRESHOLD";
+        snprintf(alert.message, LCD_COLS, "EMERG2: %.3f Hz", alert.frequencyAnalysis.frequency);
         return alert;
     }
 
@@ -51,10 +52,10 @@ FrequencyAlert FrequencyInterpreter::interpret(const FrequencyAnalysis& analysis
         return alert;
     }
 
-    if (alert.deviation >= LEVEL2_EMERGENCY_THRESHOLD) {
+    if (alert.deviation >= ALERT_RANGE_THRESHOLD) {
         alert.hasAlert = true;
-        alert.alertType = "LEVEL2_EMERGENCY_THRESHOLD";
-        snprintf(alert.message, LCD_COLS, "EMERG2: %.3f Hz", alert.frequencyAnalysis.frequency);
+        alert.alertType = "ALERT_RANGE_THRESHOLD";
+        snprintf(alert.message, LCD_COLS, "ALERT: %.3f Hz", alert.frequencyAnalysis.frequency);
         return alert;
     }
 
